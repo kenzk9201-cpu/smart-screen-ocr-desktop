@@ -105,7 +105,13 @@ jobs:
         env:
           # 若尚未設定 Apple Developer 憑證 Secrets，停用自動簽章探索以產出未簽章版本
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: chmod +x scripts/package-mac-portable.sh && bash scripts/package-mac-portable.sh
+        run: |
+          set -o pipefail
+          chmod +x scripts/package-mac-portable.sh
+          if ! bash scripts/package-mac-portable.sh 2>&1 | tee /tmp/mac-portable.log; then
+            echo "::error::$(tail -n 12 /tmp/mac-portable.log | tr '\n' ' ')"
+            exit 1
+          fi
 
       # 步驟 6：立即上傳 macOS 行動免安裝版成品，確保使用者第一時間可下載隨身版
       - name: 上傳 macOS 行動免安裝版 (Portable)
@@ -121,11 +127,15 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           DEBUG: "electron-builder:dmg"
         run: |
-          npm run build:mac || (
+          set -o pipefail
+          if ! npm run build:mac 2>&1 | tee /tmp/mac-build.log; then
             echo "[重試] 偵測到 macOS hdiutil 資源暫時忙碌，等待 5 秒後重試打包..."
             sleep 5
-            npm run build:mac
-          )
+            if ! npm run build:mac 2>&1 | tee -a /tmp/mac-build.log; then
+              echo "::error::$(tail -n 12 /tmp/mac-build.log | tr '\n' ' ')"
+              exit 1
+            fi
+          fi
 
       # 步驟 8：上傳 macOS 標準安裝檔成品至 GitHub Actions Artifacts
       - name: 上傳 macOS 標準安裝檔 (.dmg / .zip)

@@ -1,0 +1,85 @@
+# ==============================================================================
+# Smart Screen OCR 跨平台 Electron 打包設定檔 (Windows & macOS)
+# 搭配 electron-builder 使用，支援一鍵建置 Windows (.exe) 與 macOS (.dmg / .zip)
+# ==============================================================================
+
+# 應用程式唯一識別碼（對應 Windows AppUserModelId 與 macOS Bundle ID）
+appId: com.smartscreenocr.desktop
+
+# 顯示名稱（用於安裝程式標題、捷徑名稱與 .app 套件名稱）
+productName: Smart Screen OCR
+
+# 輸出與建置資源目錄設定
+directories:
+  output: dist
+  buildResources: build
+
+# 打包時納入封裝的檔案清單
+files:
+  - src/**/*
+  - assets/**/*
+  - package.json
+
+# 啟用 ASAR 封裝以提升啟動速度並縮減檔案散落
+asar: true
+
+# ------------------------------------------------------------------------------
+# Windows 平台打包設定 (NSIS 安裝檔 + Portable 免安裝可攜版)
+# ------------------------------------------------------------------------------
+win:
+  icon: assets/icon.ico
+  # 在無程式碼簽章憑證及未開啟開發人員模式的 Windows 環境下，停用 winCodeSign
+  # 以避免解壓 macOS 符號連結時因權限不足導致打包失敗；若日後具備簽章憑證可再開啟
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+# Windows NSIS 安裝精靈細部設定（允許自訂安裝路徑並建立桌面與開始功能表捷徑）
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Smart Screen OCR
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+
+# Windows 免安裝可攜版輸出檔名格式（執行時會自動偵測同層 portable-data/ 啟用隨身模式）
+portable:
+  artifactName: "${productName}-${version}-Portable-${arch}.${ext}"
+
+# ------------------------------------------------------------------------------
+# macOS 平台打包設定 (同時支援 Apple Silicon arm64 與 Intel x64)
+# 相容標準 dmg / zip 安裝檔，以及透過 scripts/package-mac-portable.sh 使用
+# `--mac dir --arm64 --x64` 產出之行動免安裝版 (Portable Edition，含 portable-data/)
+# ------------------------------------------------------------------------------
+mac:
+  icon: assets/icon.icns
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # 寫入 Info.plist 的系統隱私權授權提示文字
+  extendInfo:
+    NSScreenCaptureUsageDescription: "Smart Screen OCR 需要「螢幕錄製」權限以凍結目前螢幕畫面並進行 AI 文字辨識。"
+  # 支援標準 .dmg 與 .zip 目標；執行行動免安裝版腳本時會以 --mac dir 複用此處完整權限與圖示設定
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+
+# macOS DMG 磁碟映像檔標題設定
+dmg:
+  title: "${productName} ${version}"

@@ -1,0 +1,24 @@
+{
+  "name": "smart-screen-ocr-desktop",
+  "version": "1.0.0",
+  "description": "跨平台桌面版智慧螢幕截圖與 AI 文字辨識應用程式 (Smart Screen OCR)",
+  "main": "src/main/main.js",
+  "author": "Smart Screen OCR",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/run-tests.js",
+    "build:win": "electron-builder --win --config electron-builder.yml",
+    "build:win-dir": "electron-builder --win --dir --config electron-builder.yml",
+    "build:mac": "electron-builder --mac --config electron-builder.yml",
+    "build:mac-portable": "bash scripts/package-mac-portable.sh",
+    "build:all": "electron-builder -mwl --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "electron": "^35.1.5",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "msedge-tts": "^2.1.1"
+  }
+}

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 嚴格內容安全原則：允許本地腳本、截圖 Data/Blob URL、無色偏解碼與自然語音音訊播放 -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self';"
+  />
+  <title>Smart Screen OCR 截圖覆蓋層</title>
+  <link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <!-- 全螢幕凍結截圖互動根容器 -->
+  <div class="ocr-root" id="ocrRoot">
+    <!-- 凍結的高解析度螢幕截圖底圖 -->
+    <img class="screenshot-img" id="screenshotImg" src="" alt="凍結的螢幕截圖" />
+
+    <!-- 三星智慧選取風格外框光暈（連動目前主題主強調色） -->
+    <div class="screen-border-glow" id="borderGlow"></div>
+
+    <!-- 滑鼠拖曳框選透明互動層 -->
+    <div
+      class="interaction-canvas"
+      id="interactionCanvas"
+      title="按住滑鼠左鍵拖曳框選要辨識的區域"
+    ></div>
+
+    <!-- 拖曳框選矩形（含 AI 掃描光條動畫） -->
+    <div class="marquee-box" id="marqueeBox"></div>
+
+    <!-- 頂部懸浮膠囊狀態與操作列 -->
+    <div class="top-bar">
+      <div class="status-badge" id="statusBadge">
+        <span class="spinner" id="statusSpinner" style="display: none;"></span>
+        <span id="statusText">請按住滑鼠左鍵「拖曳框選」要辨識文字的區域</span>
+      </div>
+      <button class="bar-btn" id="openSettingsBtn" type="button" title="設定 AI 模型、配色主題、語音與快速鍵">
+        ⚙️ 設定 / 配色
+      </button>
+      <button class="bar-btn" id="openFullSettingsBtn" type="button" title="開啟桌面完整設定視窗">
+        🖥️ 主視窗
+      </button>
+    </div>
+
+    <!-- 右上角大型圓形 X 關閉按鈕 -->
+    <button class="close-x-btn" id="closeOverlayBtn" type="button" title="關閉截圖覆蓋層 (Esc)">✕</button>
+
+    <!-- 框選區域後的懸浮 OCR 辨識結果與動作卡片 -->
+    <div class="ocr-result-card" id="ocrResultCard">
+      <div class="ocr-card-header">
+        <span id="ocrCardTitle">✨ 框選區域辨識文字（可反白選取部分文字，或直接複製/詢問）</span>
+        <button class="panel-close-btn" id="closeOcrCardBtn" type="button" title="關閉此小視窗">✕</button>
+      </div>
+
+      <textarea
+        class="ocr-card-textarea"
+        id="ocrResultTextarea"
+        autocomplete="off"
+        placeholder="正在辨識框選區域文字..."
+      ></textarea>
+
+      <!-- 語音引擎、聲線與語速快捷控制列（支援 Edge 自然神經 / Google Gemini / 系統地端語音） -->
+      <div class="ocr-voice-bar">
+        <select class="voice-engine-select" id="cardTtsEngineSelect" title="切換語音發音引擎">
+          <option value="edge-neural" selected>🌟 Edge 自然語音</option>
+          <option value="google-gemini">✨ Gemini 語音</option>
+          <option value="system-local">🖥️ 地端語音</option>
+        </select>
+        <select class="voice-bar-select" id="cardVoiceSelect" title="選擇朗讀聲線（依引擎自動切換）">
+          <option value="">⭐ 自動最佳聲線</option>
+        </select>
+        <select class="voice-rate-select" id="cardSpeechRateSelect" title="調整朗讀語速">
+          <option value="0.7">0.7x</option>
+          <option value="0.8">0.8x</option>
+          <option value="0.9">0.9x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.1">1.1x</option>
+          <option value="1.2">1.2x</option>
+          <option value="1.3">1.3x</option>
+          <option value="1.4">1.4x</option>
+          <option value="1.5">1.5x</option>
+        </select>
+      </div>
+
+      <!-- 主要辨識結果操作按鈕列 -->
+      <div class="ocr-card-actions">
+        <button class="action-btn" id="copySelectedBtn" type="button">📋 複製文字</button>
+        <button class="action-btn" id="speakSelectedBtn" type="button" title="以自然語音朗讀選取字詞（未反白則朗讀全部）">🔊 發音</button>
+        <button class="action-btn primary" id="askGeminiBtn" type="button">✨ 查詢 Gemini</button>
+        <button class="action-btn" id="translateSelectedBtn" type="button">🌐 翻譯</button>
+        <button class="action-btn" id="saveCropImageBtn" type="button" title="將框選區域另存為高畫質 JPG 圖片">🖼️ 另存圖片</button>
+        <button class="action-btn" id="retryCropOcrBtn" type="button" title="重新辨識此框選區域">🔄 重試</button>
+      </div>
+    </div>
+
+    <!-- 可拖曳的 Gemini 懸浮查詢與多輪追問對話視窗 -->
+    <div class="gemini-panel" id="geminiPanel">
+      <div class="gemini-header" id="geminiDragHandle">
+        <div class="gemini-title">
+          <span>✨ Gemini 智慧查詢</span>
+        </div>
+        <button class="panel-close-btn" id="closeGeminiPanelBtn" type="button" title="隱藏對話視窗">✕</button>
+      </div>
+
+      <!-- 查詢文字上下文編輯區 -->
+      <div class="selected-context-box">
+        <div class="context-label">
+          <span>📌 查詢的文字內容（可直接修改或複製）：</span>
+          <button class="copy-reply-btn" id="copyContextTextBtn" type="button">📋 複製</button>
+        </div>
+        <textarea
+          class="context-textarea"
+          id="contextTextarea"
+          autocomplete="off"
+          placeholder="選取或框選畫面上的文字..."
+        ></textarea>
+      </div>
+
+      <!-- 4 個一鍵快速提問 Chips -->
+      <div class="quick-chips">
+        <button class="chip-btn" type="button" data-prompt="請幫我解釋這段文字的意思與背景重點">💡 解釋意思</button>
+        <button class="chip-btn" type="button" data-prompt="請將這段文字自然流暢地翻譯成繁體中文（若原文為繁中則翻譯為英文）">🌐 翻譯文字</button>
+        <button class="chip-btn" type="button" data-prompt="請幫我整理這段內容的條列式重點摘要">📝 重點摘要</button>
+        <button class="chip-btn" type="button" data-prompt="如果這是一段程式碼或專有名詞，請解析其語法與用途">💻 解析名詞/程式</button>
+      </div>
+
+      <!-- 多輪對話訊息捲動容器 -->
+      <div class="chat-messages" id="chatMessages"></div>
+
+      <!-- 底部多輪追問輸入區 -->
+      <div class="chat-input-area">
+        <div class="chat-input-hint">💬 對此文字還有疑問？在下方輸入問題，直接傳送給 Gemini AI 繼續追問：</div>
+        <div class="chat-input-row">
+          <textarea
+            class="chat-input"
+            id="chatInput"
+            rows="1"
+            autocomplete="off"
+            placeholder="輸入問題追問 Gemini (按 Enter 送出)..."
+          ></textarea>
+          <button class="send-btn" id="sendChatBtn" type="button">💬 問 Gemini</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 覆蓋層內建快速設定 Modal（與獨立設定視窗模型清單及連動配色完全一致） -->
+    <div class="modal-backdrop" id="settingsModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span>⚙️ AI 模型、配色主題與快速鍵設定</span>
+          <button class="panel-close-btn" id="closeSettingsModalBtn" type="button">✕</button>
+        </div>
+
+        <!-- 連動配色主題即時切換選單 -->
+        <div class="form-group">
+          <label for="modalThemePresetSelect">🎨 連動配色主題（即時同步覆蓋層、辨識卡片與查找翻譯面板）</label>
+          <select class="form-control" id="modalThemePresetSelect">
+            <option value="midnight">🌌 深藍夜空（預設）</option>
+            <option value="aurora-emerald">🌿 翡翠森霧</option>
+            <option value="violet-nebula">🔮 紫羅蘭星雲</option>
+            <option value="amber-obsidian">🔥 琥珀曜石</option>
+            <option value="daylight-clean">☀️ 晨光純白</option>
+            <option value="paper-warm">📖 溫潤羊皮紙</option>
+            <option value="custom">🎨 自訂配色（使用主設定頁自訂色盤）</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="shortcutInput">⌨️ 全域截圖快速鍵（點擊下方框後，直接按下想要的按鍵組合）</label>
+          <div class="shortcut-row">
+            <input
+              type="text"
+              class="form-control shortcut-input"
+              id="shortcutInput"
+              readonly
+              value="Alt+Shift+S"
+              title="點擊此處並按下鍵盤組合鍵"
+            />
+            <button class="action-btn" id="resetShortcutBtn" type="button" title="還原預設值 Alt+Shift+S">重設</button>
+          </div>
+          <div class="sub-hint">
+            支援任意組合（例如：<code>Alt+Shift+S</code>、<code>Alt+S</code>、<code>Ctrl+Shift+S</code> 或功能鍵 <code>F8</code>）。
+          </div>
+          <div class="shortcut-warn" id="modalShortcutWarn" style="display: none;"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="modelSelect">🤖 AI 模型選擇</label>
+          <select class="form-control" id="modelSelect">
+            <optgroup label="⭐ 預設模型（Gemini 2.5 免費模型）">
+              <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite（預設推薦：免費超輕量極速）</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash（免費模型）</option>
+            </optgroup>
+            <optgroup label="🚀 Gemini 4.0 系列">
+              <option value="gemini-4.0-hydrogen">gemini-4.0-hydrogen</option>
+              <option value="gemini-4.0-flash-lite">gemini-4.0-flash-lite</option>
+              <option value="gemini-4.0-flash">gemini-4.0-flash</option>
+            </optgroup>
+            <optgroup label="⚡ Gemini 3.x 系列（僅保留 Flash-Lite）">
+              <option value="gemini-3.8-flash-lite">gemini-3.8-flash-lite</option>
+            </optgroup>
+            <optgroup label="🌐 OpenAI 免費 / 輕量模型系列">
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+            </optgroup>
+            <optgroup label="✏️ 自訂模型">
+              <option value="__custom__">✏️ 手動輸入自訂模型 ID (Custom Model ID)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group custom-model-box" id="customModelBox" style="display: none;">
+          <div class="custom-model-grid">
+            <div class="custom-id-col">
+              <label for="customModelIdInput">✏️ 手動輸入自訂模型 ID</label>
+              <input
+                type="text"
+                class="form-control"
+                id="customModelIdInput"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="例如：gemini-2.5-pro 或 gpt-4.1-mini"
+              />
+            </div>
+            <div class="custom-provider-col">
+              <label for="customProviderSelect">API 類型</label>
+              <select class="form-control" id="customProviderSelect">
+                <option value="auto">自動判斷</option>
+                <option value="gemini">Gemini API</option>
+                <option value="openai">OpenAI / 相容</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="apiKeyInput">🔑 Google Gemini API Key（安全儲存於本機）</label>
+          <input
+            type="text"
+            class="form-control masked-input"
+            id="apiKeyInput"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="請貼上 AIzaSy... 開頭的 Gemini API Key"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="openaiApiKeyInput">🌐 OpenAI API Key（選用，使用 OpenAI 模型時必填）</label>
+          <input
+            type="text"
+            class="form-control masked-input"
+            id="openaiApiKeyInput"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="請貼上 sk-... 開頭的 OpenAI API Key"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="openaiBaseUrlInput">🔗 OpenAI 自訂 Base URL（選用，預設 https://api.openai.com/v1）</label>
+          <input
+            type="text"
+            class="form-control"
+            id="openaiBaseUrlInput"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="https://api.openai.com/v1"
+          />
+        </div>
+
+        <!-- 語音引擎與語速快捷設定 -->
+        <div class="form-group">
+          <label for="modalTtsEngineSelect">🔊 語音發音引擎與語速</label>
+          <div class="voice-modal-row">
+            <select class="form-control" id="modalTtsEngineSelect">
+              <option value="edge-neural" selected>🌟 Edge 自然神經語音（免金鑰推薦）</option>
+              <option value="google-gemini">✨ Google Gemini 官方自然語音</option>
+              <option value="system-local">🖥️ 系統內建地端語音（離線）</option>
+            </select>
+            <select class="form-control modal-rate-select" id="modalSpeechRateSelect">
+              <option value="0.7">0.7x</option>
+              <option value="0.8">0.8x</option>
+              <option value="0.9">0.9x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.1">1.1x</option>
+              <option value="1.2">1.2x</option>
+              <option value="1.3">1.3x</option>
+              <option value="1.4">1.4x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+          </div>
+          <select class="form-control" id="modalVoiceSelect" style="margin-top: 8px;">
+            <option value="">⭐ 自動選擇最佳語音</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <a href="#" id="getGeminiKeyLink" class="external-link">🔑 免費取得 Gemini API Key ↗</a>
+          <div class="modal-footer-btns">
+            <button class="action-btn" id="cancelSettingsBtn" type="button">取消</button>
+            <button class="action-btn primary" id="saveSettingsBtn" type="button">💾 儲存設定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部短暫 Toast 提示訊息 -->
+    <div class="toast" id="toastBox"></div>
+  </div>
+
+  <!-- 先載入全域配色共用模組，再啟動覆蓋層互動腳本 -->
+  <script src="themeHelper.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>

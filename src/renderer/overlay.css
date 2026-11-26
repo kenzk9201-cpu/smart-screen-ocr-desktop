@@ -1,0 +1,844 @@
+/* overlay.css - 全螢幕凍結截圖覆蓋層樣式（全面連動 themeHelper.js CSS 變數） */
+
+/* 預設主題變數（深藍夜空 midnight），避免載入瞬間閃爍 */
+:root {
+  --bg-primary: #0f172a;
+  --bg-surface: #1e293b;
+  --accent-color: #38bdf8;
+  --accent-secondary: #7c3aed;
+  --text-primary: #f8fafc;
+  --text-secondary: rgba(248, 250, 252, 0.8);
+  --text-muted: rgba(248, 250, 252, 0.62);
+  --accent-glow: rgba(56, 189, 248, 0.78);
+  --accent-glow-soft: rgba(56, 189, 248, 0.36);
+  --accent-tint: rgba(56, 189, 248, 0.14);
+  --accent-border: rgba(56, 189, 248, 0.5);
+  --scan-gradient: linear-gradient(90deg, transparent, #38bdf8, #7c3aed, transparent);
+  --card-bg: rgba(15, 23, 42, 0.95);
+  --card-bg-solid: #0f172a;
+  --topbar-bg: rgba(15, 23, 42, 0.88);
+  --sub-panel-bg: rgba(30, 41, 59, 0.88);
+  --overlay-input-bg: rgba(30, 41, 59, 0.92);
+  --border-subtle: rgba(248, 250, 252, 0.24);
+  --border-faint: rgba(248, 250, 252, 0.16);
+  --btn-bg: rgba(248, 250, 252, 0.16);
+  --btn-hover-bg: rgba(248, 250, 252, 0.26);
+  --btn-text: #f8fafc;
+  --btn-primary-bg: linear-gradient(135deg, #2563eb, #7c3aed);
+  --btn-primary-text: #ffffff;
+  --btn-primary-shadow: rgba(124, 58, 237, 0.35);
+  --speaking-bg: rgba(56, 189, 248, 0.28);
+  --speaking-border: rgba(56, 189, 248, 0.72);
+  --speaking-text: #f8fafc;
+  --gemini-header-bg: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(124, 58, 237, 0.28));
+  --gemini-title-color: #f8fafc;
+  --chip-bg: rgba(56, 189, 248, 0.18);
+  --chip-border: rgba(56, 189, 248, 0.38);
+  --chip-text: #f8fafc;
+  --chip-hover-bg: rgba(56, 189, 248, 0.38);
+  --msg-user-bg: #2563eb;
+  --msg-user-text: #ffffff;
+  --msg-model-bg: rgba(30, 41, 59, 0.95);
+  --msg-model-text: #f8fafc;
+  --code-bg: rgba(15, 23, 42, 0.85);
+  --shadow-elevated: 0 18px 46px rgba(0, 0, 0, 0.58);
+  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --badge-warn-bg: rgba(245, 158, 11, 0.16);
+  --badge-warn-border: rgba(251, 191, 36, 0.52);
+  --badge-warn-text: #fde68a;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "PingFang TC", Roboto, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000000;
+}
+
+/* 全螢幕覆蓋層主容器 */
+.ocr-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background: #000000;
+  animation: fadeInFrame 0.14s ease-out;
+}
+
+@keyframes fadeInFrame {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
+/* 外框三星智慧選取風格光暈（連動主題主強調色） */
+.screen-border-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 3px solid var(--accent-glow);
+  box-shadow: inset 0 0 26px var(--accent-glow-soft);
+  z-index: 15;
+}
+
+/* 凍結的截圖底圖（以 100% 滿版對齊視窗座標） */
+.screenshot-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 1;
+}
+
+/* 畫布互動層（十字準心供滑鼠拖曳框選區域） */
+.interaction-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  cursor: crosshair;
+}
+
+/* 拖曳框選矩形（四周暗化突顯選取區 + 主題強調光暈） */
+.marquee-box {
+  position: absolute;
+  display: none;
+  border: 2px solid var(--accent-color);
+  background: var(--accent-tint);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38), 0 0 18px var(--accent-glow);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 12;
+  overflow: hidden;
+}
+
+/* AI 辨識掃描光條動畫（連動主題主強調與輔色漸層） */
+.marquee-box.scanning::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--scan-gradient);
+  box-shadow: 0 0 12px var(--accent-color);
+  animation: scanVertical 1.1s infinite ease-in-out;
+}
+
+@keyframes scanVertical {
+  0% { top: 0%; opacity: 0.9; }
+  50% { top: 96%; opacity: 1; }
+  100% { top: 0%; opacity: 0.9; }
+}
+
+/* 頂部懸浮膠囊狀態列 */
+.top-bar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--topbar-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  box-shadow: var(--shadow-soft);
+  color: var(--text-primary);
+  font-size: 13px;
+  max-width: calc(100vw - 128px);
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sub-panel-bg);
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-badge.loading {
+  color: var(--accent-color);
+}
+
+.status-badge.warn {
+  color: var(--badge-warn-text);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid var(--accent-glow-soft);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.bar-btn:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+}
+
+/* 右上角大型明顯的圓形 X 關閉圖示 */
+.close-x-btn {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  z-index: 35;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--topbar-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.18s ease;
+}
+
+.close-x-btn:hover {
+  background: #ef4444;
+  border-color: #fca5a5;
+  color: #ffffff;
+  transform: scale(1.08) rotate(90deg);
+}
+
+/* 框選區域後的懸浮辨識結果與動作卡片 */
+.ocr-result-card {
+  position: absolute;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  width: 448px;
+  max-width: calc(100vw - 32px);
+  z-index: 28;
+  padding: 12px;
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-elevated);
+  color: var(--text-primary);
+  animation: popIn 0.14s ease-out;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ocr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ocr-card-textarea {
+  width: 100%;
+  min-height: 72px;
+  max-height: 168px;
+  resize: vertical;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--overlay-input-bg);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  line-height: 1.5;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ocr-card-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* 辨識結果卡片內的語音引擎、聲線與語速精簡列 */
+.ocr-voice-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-engine-select {
+  width: 136px;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--overlay-input-bg);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.voice-bar-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--overlay-input-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.voice-rate-select {
+  width: 64px;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--overlay-input-bg);
+  color: var(--accent-color);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.voice-engine-select:focus,
+.voice-bar-select:focus,
+.voice-rate-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.ocr-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--btn-text);
+  background: var(--btn-bg);
+}
+
+.action-btn:hover {
+  background: var(--btn-hover-bg);
+  transform: translateY(-1px);
+}
+
+.action-btn.primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow);
+}
+
+.action-btn.primary:hover {
+  opacity: 0.92;
+}
+
+.action-btn.speaking {
+  background: var(--speaking-bg);
+  border-color: var(--speaking-border);
+  color: var(--speaking-text);
+}
+
+/* 可拖曳的 Gemini 查找與翻譯懸浮對話視窗 */
+.gemini-panel {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 440px;
+  max-width: calc(100vw - 48px);
+  height: 550px;
+  max-height: calc(100vh - 96px);
+  z-index: 32;
+  display: none;
+  flex-direction: column;
+  background: var(--card-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--accent-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-elevated);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.gemini-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--gemini-header-bg);
+  border-bottom: 1px solid var(--border-faint);
+  cursor: move;
+  user-select: none;
+}
+
+.gemini-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gemini-title-color);
+}
+
+.panel-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.panel-close-btn:hover {
+  background: var(--btn-bg);
+  color: var(--text-primary);
+}
+
+.selected-context-box {
+  padding: 10px 14px;
+  background: var(--sub-panel-bg);
+  border-bottom: 1px solid var(--border-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.context-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.context-textarea {
+  width: 100%;
+  min-height: 48px;
+  max-height: 100px;
+  resize: vertical;
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 7px 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.context-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* 快速提問 Chips（自動換行排版） */
+.quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-faint);
+  background: var(--card-bg);
+}
+
+.chip-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip-btn:hover {
+  background: var(--chip-hover-bg);
+  color: var(--text-primary);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.msg-bubble {
+  max-width: 92%;
+  padding: 10px 13px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.msg-user {
+  align-self: flex-end;
+  background: var(--msg-user-bg);
+  color: var(--msg-user-text);
+  border-bottom-right-radius: 4px;
+}
+
+.msg-model {
+  align-self: flex-start;
+  background: var(--msg-model-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--msg-model-text);
+  border-bottom-left-radius: 4px;
+}
+
+.msg-model pre {
+  background: var(--code-bg);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.msg-model code {
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12.5px;
+}
+
+.msg-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.copy-reply-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.copy-reply-btn:hover {
+  background: var(--btn-bg);
+  color: var(--text-primary);
+}
+
+/* 底部多輪追問輸入區 */
+.chat-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 14px 10px 14px;
+  background: var(--sub-panel-bg);
+  border-top: 1px solid var(--border-faint);
+}
+
+.chat-input-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  resize: none;
+  height: 36px;
+  line-height: 18px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.send-btn {
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 設定 Modal 遮罩與卡片 */
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-card {
+  width: 540px;
+  max-width: calc(100vw - 32px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 20px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-elevated);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.form-group {
+  margin-bottom: 13px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--overlay-input-bg);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* 使用文字遮蔽樣式隱藏金鑰 */
+.masked-input {
+  -webkit-text-security: disc;
+}
+
+.shortcut-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.shortcut-input {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  color: var(--accent-color);
+  cursor: pointer;
+  background: var(--overlay-input-bg);
+  border: 1.5px dashed var(--accent-border);
+}
+
+.shortcut-input:focus {
+  border-style: solid;
+  border-color: var(--accent-color);
+  background: var(--accent-tint);
+}
+
+.shortcut-warn {
+  margin-top: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--badge-warn-bg);
+  border: 1px solid var(--badge-warn-border);
+  color: var(--badge-warn-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sub-hint {
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.sub-hint code {
+  background: var(--btn-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.custom-model-box {
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--sub-panel-bg);
+  border: 1px solid var(--accent-border);
+}
+
+.custom-model-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-id-col {
+  flex: 1.4;
+}
+
+.custom-provider-col {
+  flex: 1;
+}
+
+.voice-modal-row {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-rate-select {
+  width: 92px;
+  flex-shrink: 0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.external-link {
+  color: var(--accent-color);
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.external-link:hover {
+  text-decoration: underline;
+}
+
+.modal-footer-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* 底部短暫 Toast 提示 */
+.toast {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--card-bg);
+  border: 1px solid var(--accent-color);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+  display: none;
+  pointer-events: none;
+}

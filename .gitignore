@@ -1,0 +1,39 @@
+# ==============================================================================
+# Smart Screen OCR 桌面版 - Git 忽略規則 (.gitignore)
+# 嚴格排除相依套件、建置成品、隨身個人設定（含 API Key）與系統暫存檔
+# ==============================================================================
+
+# Node.js 相依套件與快取
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Electron 打包輸出與大型建置成品
+dist/
+out/
+release/
+*.exe
+*.dmg
+*.zip
+*.blockmap
+*.AppImage
+
+# 行動免安裝版個人設定與 API Key（嚴禁上傳至公開或遠端儲存庫）
+portable-data/
+**/portable-data/
+settings.json
+**/settings.json
+.env
+.env.*
+
+# 非程式碼之本機文件檔
+ReadMe.docx
+*.docx
+
+# 作業系統與編輯器暫存檔
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp

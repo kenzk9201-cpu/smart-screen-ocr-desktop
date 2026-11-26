@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Smart Screen OCR - macOS Hardened Runtime 權限設定檔 (Entitlements)
+  用途：提供 Electron 桌面應用程式在 macOS 啟用 Hardened Runtime 時所需的必要系統權限。
+  備註：螢幕錄製權限說明 (NSScreenCaptureUsageDescription) 係透過 electron-builder.yml
+        的 mac.extendInfo 寫入 Info.plist，並於執行期由 macOS TCC 機制向使用者請求授權。
+-->
+<plist version="1.0">
+  <dict>
+    <!-- 允許 V8 JavaScript 引擎使用 JIT 動態編譯執行程式碼 -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- 允許 Electron / Chromium 分配未簽章之可執行記憶體（WebAssembly 與渲染程序必要權限） -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- 允許載入第三方函式庫與 Electron 框架內建元件 -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- 允許應用程式建立對外網路連線，以呼叫 Google Gemini API 與 OpenAI 相容 API -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- 允許透過系統原生儲存對話框將擷取圖片另存至使用者指定路徑 -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+  </dict>
+</plist>

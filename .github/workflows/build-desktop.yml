@@ -1,0 +1,134 @@
+# ==============================================================================
+# Smart Screen OCR 跨平台自動化建置與打包工作流程 (GitHub Actions)
+# 同時於 Windows 與 macOS 雲端主機建置雙平台安裝檔：
+#   - Windows (windows-latest)：產出 x64 NSIS 安裝檔與免安裝可攜版 (.exe)
+#   - macOS (macos-latest)：產出 Apple Silicon (arm64) 與 Intel (x64) 的 .dmg 與 .zip
+# ==============================================================================
+
+name: Build Smart Screen OCR Desktop
+
+on:
+  # 允許於 GitHub Actions 頁面手動點擊「Run workflow」即時觸發建置
+  workflow_dispatch:
+  # 推送至 main 分支或推送版本標籤（例如 v1.0.0）時自動觸發建置
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+
+# 限制權限以符合最小權限原則（僅保留讀取程式碼與上傳成品權限）
+permissions:
+  contents: read
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # 作業一：建置 Windows 64 位元安裝版與免安裝可攜版 (.exe)
+  # ----------------------------------------------------------------------------
+  build-windows:
+    name: Build Windows (x64 NSIS & Portable)
+    runs-on: windows-latest
+    steps:
+      # 步驟 1：檢出原始碼
+      - name: 檢出專案原始碼
+        uses: actions/checkout@v4
+
+      # 步驟 2：安裝 Node.js 20 LTS 執行環境
+      - name: 設定 Node.js 環境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 步驟 3：安裝相依套件（若存在 package-lock.json 則優先使用 npm ci）
+      - name: 安裝相依套件
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # 步驟 4：執行單元測試與規範合規檢查
+      - name: 執行自動化測試
+        run: npm test
+
+      # 步驟 5：使用 electron-builder 打包 Windows 安裝檔與可攜版
+      - name: 打包 Windows 安裝檔 (.exe)
+        env:
+          # 無簽章憑證時關閉自動探索，確保未簽章建置穩定完成
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build:win
+
+      # 步驟 6：上傳 Windows 建置成品至 GitHub Actions Artifacts
+      - name: 上傳 Windows 打包成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-screen-ocr-windows-x64
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
+
+  # ----------------------------------------------------------------------------
+  # 作業二：建置 macOS Apple Silicon (arm64) 與 Intel (x64) 安裝檔 (.dmg / .zip)
+  # ----------------------------------------------------------------------------
+  build-macos:
+    name: Build macOS (arm64 & x64 DMG & ZIP)
+    runs-on: macos-latest
+    steps:
+      # 步驟 1：檢出原始碼
+      - name: 檢出專案原始碼
+        uses: actions/checkout@v4
+
+      # 步驟 2：安裝 Node.js 20 LTS 執行環境
+      - name: 設定 Node.js 環境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 步驟 3：安裝相依套件
+      - name: 安裝相依套件
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # 步驟 4：執行單元測試與規範合規檢查
+      - name: 執行自動化測試
+        run: npm test
+
+      # 步驟 5：使用 electron-builder 打包 macOS arm64 與 x64 的標準安裝檔 (.dmg / .zip)
+      - name: 打包 macOS 標準安裝檔 (.dmg / .zip)
+        env:
+          # 若尚未設定 Apple Developer 憑證 Secrets，停用自動簽章探索以產出未簽章版本
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build:mac
+
+      # 步驟 6：打包 macOS arm64 與 x64 行動免安裝版 (Portable ZIP，含 portable-data 與一鍵解鎖腳本)
+      - name: 打包 macOS 行動免安裝版 (Portable ZIP)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: chmod +x scripts/package-mac-portable.sh && bash scripts/package-mac-portable.sh
+
+      # 步驟 7：上傳 macOS 標準安裝檔成品至 GitHub Actions Artifacts
+      - name: 上傳 macOS 標準安裝檔 (.dmg / .zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-screen-ocr-macos-arm64-x64
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            !dist/Smart-Screen-OCR-macOS-*-Portable.zip
+          if-no-files-found: error
+
+      # 步驟 8：獨立上傳 macOS 行動免安裝版成品，方便使用者一鍵下載隨身版
+      - name: 上傳 macOS 行動免安裝版 (Portable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smart-Screen-OCR-macOS-Portable
+          path: dist/Smart-Screen-OCR-macOS-*-Portable.zip
+          if-no-files-found: error

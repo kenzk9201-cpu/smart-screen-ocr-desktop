@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 嚴格內容安全原則：保護桌面設定視窗並允許自然語音音訊試聽 -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self';"
+  />
+  <title>Smart Screen OCR & AI 桌面設定</title>
+  <style>
+    /* 預設深藍夜空 CSS 變數（啟動後由 themeHelper.js 即時覆寫連動） */
+    :root {
+      --bg-primary: #0f172a;
+      --bg-surface: #1e293b;
+      --accent-color: #38bdf8;
+      --accent-secondary: #7c3aed;
+      --text-primary: #f8fafc;
+      --text-secondary: rgba(248, 250, 252, 0.8);
+      --text-muted: rgba(248, 250, 252, 0.62);
+      --accent-glow: rgba(56, 189, 248, 0.78);
+      --accent-glow-soft: rgba(56, 189, 248, 0.36);
+      --accent-tint: rgba(56, 189, 248, 0.14);
+      --accent-border: rgba(56, 189, 248, 0.5);
+      --card-bg: rgba(15, 23, 42, 0.95);
+      --sub-panel-bg: rgba(15, 23, 42, 0.66);
+      --input-bg: #0f172a;
+      --border-subtle: rgba(248, 250, 252, 0.24);
+      --border-faint: rgba(248, 250, 252, 0.16);
+      --btn-bg: rgba(248, 250, 252, 0.14);
+      --btn-hover-bg: rgba(248, 250, 252, 0.24);
+      --btn-text: #f8fafc;
+      --btn-primary-bg: linear-gradient(135deg, #2563eb, #7c3aed);
+      --btn-primary-text: #ffffff;
+      --btn-primary-shadow: rgba(124, 58, 237, 0.35);
+      --gemini-header-bg: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(124, 58, 237, 0.28));
+      --chip-bg: rgba(56, 189, 248, 0.18);
+      --chip-border: rgba(56, 189, 248, 0.38);
+      --chip-text: #f8fafc;
+      --msg-user-bg: #2563eb;
+      --msg-user-text: #ffffff;
+      --msg-model-bg: rgba(30, 41, 59, 0.95);
+      --msg-model-text: #f8fafc;
+      --code-bg: rgba(15, 23, 42, 0.85);
+      --shadow-elevated: 0 20px 50px rgba(0, 0, 0, 0.45);
+      --badge-ok-bg: rgba(16, 185, 129, 0.14);
+      --badge-ok-border: rgba(52, 211, 153, 0.45);
+      --badge-ok-text: #6ee7b7;
+      --badge-warn-bg: rgba(245, 158, 11, 0.16);
+      --badge-warn-border: rgba(251, 191, 36, 0.52);
+      --badge-warn-text: #fde68a;
+      --badge-portable-bg: rgba(124, 58, 237, 0.2);
+      --badge-portable-border: rgba(124, 58, 237, 0.45);
+      --badge-portable-text: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "PingFang TC", Roboto, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 26px 20px 38px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 26px 30px;
+      box-shadow: var(--shadow-elevated);
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .title-group h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .version-pill {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-border);
+      color: var(--accent-color);
+    }
+
+    p.subtitle {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    /* 系統狀態儀表列（OS、全域快速鍵、行動免安裝徽章） */
+    .status-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--accent-border);
+      font-size: 13px;
+    }
+
+    .status-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .info-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .info-pill.ok {
+      background: var(--badge-ok-bg);
+      border-color: var(--badge-ok-border);
+      color: var(--badge-ok-text);
+    }
+
+    .info-pill.warn {
+      background: var(--badge-warn-bg);
+      border-color: var(--badge-warn-border);
+      color: var(--badge-warn-text);
+    }
+
+    .info-pill.portable {
+      background: var(--badge-portable-bg);
+      border-color: var(--badge-portable-border);
+      color: var(--badge-portable-text);
+    }
+
+    /* macOS 螢幕錄製權限引導卡片 */
+    .permission-card {
+      display: none;
+      margin-bottom: 20px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: var(--badge-warn-bg);
+      border: 1.5px solid var(--badge-warn-border);
+      color: var(--badge-warn-text);
+    }
+
+    .permission-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+    }
+
+    .permission-card p {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .permission-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--input-bg);
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .masked-input {
+      -webkit-text-security: disc;
+    }
+
+    .shortcut-row,
+    .grid-2,
+    .voice-controls-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .grid-2 > div {
+      flex: 1;
+    }
+
+    .shortcut-input {
+      flex: 1;
+      text-align: center;
+      font-weight: 700;
+      color: var(--accent-color);
+      cursor: pointer;
+      border: 1.5px dashed var(--accent-border);
+    }
+
+    .shortcut-input:focus {
+      border-style: solid;
+      border-color: var(--accent-color);
+      background: var(--accent-tint);
+    }
+
+    .shortcut-conflict-banner {
+      display: none;
+      margin-top: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--badge-warn-bg);
+      border: 1px solid var(--badge-warn-border);
+      color: var(--badge-warn-text);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    /* 開機自動啟動開關卡片 */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-faint);
+      margin-bottom: 18px;
+    }
+
+    .toggle-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .toggle-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .toggle-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 26px;
+      flex-shrink: 0;
+      margin: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--btn-bg);
+      transition: 0.2s;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #ffffff;
+      transition: 0.2s;
+      border-radius: 50%;
+    }
+
+    .switch input:checked + .slider {
+      background: var(--btn-primary-bg);
+      border-color: var(--accent-color);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(20px);
+    }
+
+    /* 全域連動配色主題選擇器與即時迷你預覽 */
+    .theme-section {
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-faint);
+      margin-bottom: 18px;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .theme-preset-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+
+    .theme-preset-btn:hover {
+      border-color: var(--accent-color);
+      transform: translateY(-1px);
+    }
+
+    .theme-preset-btn.active {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px var(--accent-glow-soft);
+      background: var(--accent-tint);
+    }
+
+    .theme-preset-title {
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .swatch-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .swatch-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+    }
+
+    .custom-theme-box {
+      display: none;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--accent-border);
+      margin-bottom: 12px;
+    }
+
+    .color-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .color-picker-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .color-picker-item input[type="color"] {
+      width: 100%;
+      height: 34px;
+      padding: 2px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: var(--input-bg);
+      cursor: pointer;
+    }
+
+    /* 即時連動迷你預覽區（同時預覽 OCR 卡片與查找翻譯對話泡泡） */
+    .live-preview-box {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1.5px solid var(--accent-glow);
+      box-shadow: inset 0 0 18px var(--accent-glow-soft);
+    }
+
+    .live-preview-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-color);
+      margin-bottom: 10px;
+    }
+
+    .live-preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 580px) {
+      .live-preview-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .preview-card {
+      border-radius: 10px;
+      padding: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--accent-border);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      font-size: 12px;
+    }
+
+    .preview-card-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .preview-ocr-text {
+      padding: 7px 8px;
+      border-radius: 7px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .preview-btn-sec {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .preview-btn-pri {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .preview-chat-header {
+      margin: -10px -10px 4px -10px;
+      padding: 7px 10px;
+      border-radius: 9px 9px 0 0;
+      background: var(--gemini-header-bg);
+      border-bottom: 1px solid var(--border-faint);
+      font-weight: 700;
+      font-size: 11.5px;
+      color: var(--text-primary);
+    }
+
+    .preview-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: var(--chip-text);
+      font-size: 10.5px;
+      align-self: flex-start;
+    }
+
+    .preview-bubble-user {
+      align-self: flex-end;
+      padding: 5px 8px;
+      border-radius: 8px 8px 3px 8px;
+      background: var(--msg-user-bg);
+      color: var(--msg-user-text);
+      font-size: 11.5px;
+    }
+
+    .preview-bubble-model {
+      align-self: flex-start;
+      padding: 6px 8px;
+      border-radius: 8px 8px 8px 3px;
+      background: var(--msg-model-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--msg-model-text);
+      font-size: 11.5px;
+    }
+
+    /* 語音設定子區塊 */
+    .voice-sub-box {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-faint);
+    }
+
+    .rate-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .rate-slider-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent-color);
+      cursor: pointer;
+    }
+
+    .rate-value-badge {
+      min-width: 48px;
+      text-align: center;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-border);
+      color: var(--accent-color);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .secondary-btn {
+      padding: 10px 15px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease;
+    }
+
+    .secondary-btn:hover {
+      background: var(--btn-hover-bg);
+    }
+
+    .warn-btn {
+      padding: 9px 15px;
+      border-radius: 10px;
+      border: 1px solid var(--badge-warn-border);
+      background: var(--badge-warn-bg);
+      color: var(--badge-warn-text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .hint a {
+      color: var(--accent-color);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .hint a:hover {
+      text-decoration: underline;
+    }
+
+    .custom-box {
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--accent-border);
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border-faint);
+      margin: 22px 0;
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    button.primary-btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: none;
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px var(--btn-primary-shadow);
+      transition: transform 0.14s ease, opacity 0.15s ease;
+    }
+
+    button.primary-btn:hover {
+      opacity: 0.94;
+      transform: translateY(-1px);
+    }
+
+    .status {
+      font-size: 13.5px;
+      color: var(--badge-ok-text);
+      font-weight: 600;
+    }
+
+    .guide-box {
+      margin-top: 24px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--accent-border);
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .guide-box h3 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+      color: var(--accent-color);
+    }
+
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 5px;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 頂部標題與立即截圖主按鈕 -->
+    <div class="header-row">
+      <div class="title-group">
+        <h1>
+          <span>✨ Smart Screen OCR & AI</span>
+          <span class="version-pill" id="appVersionBadge">桌面版</span>
+        </h1>
+        <p class="subtitle">三星智慧選取風格：全域快速鍵凍結螢幕、拖曳框選辨識、Edge / Gemini 自然語音與全介面連動配色。</p>
+      </div>
+      <button type="button" id="triggerCaptureBtn" class="primary-btn">📸 立即開始截圖</button>
+    </div>
+
+    <!-- 系統資訊、全域快速鍵與行動免安裝狀態列 -->
+    <div class="status-strip">
+      <div class="status-pills">
+        <span class="info-pill" id="platformBadge">💻 偵測系統中...</span>
+        <span class="info-pill ok" id="shortcutStatusBadge">⌨️ 全域快速鍵：Alt+Shift+S</span>
+        <span class="info-pill portable" id="portableModeBadge" style="display: none;">🎒 行動免安裝模式（設定儲存於隨身資料夾）</span>
+      </div>
+      <button type="button" id="testCaptureBtn" class="secondary-btn">📸 立即測試截圖</button>
+    </div>
+
+    <!-- macOS 螢幕錄製權限授權引導卡片（僅在 macOS 且尚未授權時顯示） -->
+    <div class="permission-card" id="macPermissionCard">
+      <h3>⚠️ macOS 需要「螢幕錄製」權限才能擷取畫面</h3>
+      <p>
+        偵測到目前系統尚未授權 <strong>Smart Screen OCR</strong> 螢幕錄製權限。請點擊下方按鈕前往
+        「系統設定 → 隱私權與安全性 → 螢幕錄製」開啟本應用程式權限，完成後建議重新啟動程式以套用授權。
+      </p>
+      <div class="permission-actions">
+        <button type="button" id="openPermissionBtn" class="warn-btn">🔓 開啟系統設定（螢幕錄製）</button>
+        <button type="button" id="refreshPermissionBtn" class="secondary-btn">🔄 重新檢查權限</button>
+      </div>
+    </div>
+
+    <!-- 全域快速鍵設定 -->
+    <div class="field">
+      <label for="shortcutInput">⌨️ 全域截圖快速鍵（點擊下方輸入框後，直接按下想要的鍵盤組合）</label>
+      <div class="shortcut-row">
+        <input type="text" id="shortcutInput" class="shortcut-input" readonly value="Alt+Shift+S" />
+        <button type="button" id="resetShortcutBtn" class="secondary-btn">重設預設值</button>
+      </div>
+      <div class="hint" id="shortcutHint">
+        例如：<code>Alt+Shift+S</code>、<code>Alt+S</code>、<code>Ctrl+Shift+S</code> 或功能鍵 <code>F8</code>。儲存後在任何桌面視窗按下皆可立即截圖！
+      </div>
+      <div class="shortcut-conflict-banner" id="shortcutConflictBanner"></div>
+    </div>
+
+    <!-- 開機自動啟動開關 -->
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-title">🚀 開機時自動啟動並常駐背景</span>
+        <span class="toggle-desc">登入電腦後自動啟動於系統匣 / 選單列，隨時按下全域快速鍵即可截圖。</span>
+      </div>
+      <label class="switch" title="切換開機自動啟動">
+        <input type="checkbox" id="launchAtLoginCheckbox" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- 外觀與版面連動配色系統 -->
+    <div class="theme-section">
+      <label>🎨 外觀與版面連動配色（同步套用至設定頁、截圖框選光暈、OCR 卡片與查找／翻譯面板）</label>
+      <div class="theme-grid" id="themePresetGrid">
+        <button type="button" class="theme-preset-btn active" data-theme-preset="midnight">
+          <span class="theme-preset-title">🌌 深藍夜空</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #0f172a;"></span>
+            <span class="swatch-dot" style="background: #1e293b;"></span>
+            <span class="swatch-dot" style="background: #38bdf8;"></span>
+            <span class="swatch-dot" style="background: #7c3aed;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="aurora-emerald">
+          <span class="theme-preset-title">🌿 翡翠森霧</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #071a17;"></span>
+            <span class="swatch-dot" style="background: #0f2e28;"></span>
+            <span class="swatch-dot" style="background: #34d399;"></span>
+            <span class="swatch-dot" style="background: #0ea5e9;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="violet-nebula">
+          <span class="theme-preset-title">🔮 紫羅蘭星雲</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #130f26;"></span>
+            <span class="swatch-dot" style="background: #221b40;"></span>
+            <span class="swatch-dot" style="background: #c084fc;"></span>
+            <span class="swatch-dot" style="background: #ec4899;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="amber-obsidian">
+          <span class="theme-preset-title">🔥 琥珀曜石</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #18130e;"></span>
+            <span class="swatch-dot" style="background: #292118;"></span>
+            <span class="swatch-dot" style="background: #f59e0b;"></span>
+            <span class="swatch-dot" style="background: #ef4444;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="daylight-clean">
+          <span class="theme-preset-title">☀️ 晨光純白</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #f1f5f9;"></span>
+            <span class="swatch-dot" style="background: #ffffff;"></span>
+            <span class="swatch-dot" style="background: #2563eb;"></span>
+            <span class="swatch-dot" style="background: #7c3aed;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="paper-warm">
+          <span class="theme-preset-title">📖 溫潤羊皮紙</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: #f5efe6;"></span>
+            <span class="swatch-dot" style="background: #fffcf7;"></span>
+            <span class="swatch-dot" style="background: #b45309;"></span>
+            <span class="swatch-dot" style="background: #0f766e;"></span>
+          </span>
+        </button>
+        <button type="button" class="theme-preset-btn" data-theme-preset="custom">
+          <span class="theme-preset-title">🎨 自訂配色</span>
+          <span class="swatch-dots">
+            <span class="swatch-dot" style="background: linear-gradient(135deg, #38bdf8, #ec4899);"></span>
+            <span class="swatch-dot" style="background: linear-gradient(135deg, #f59e0b, #10b981);"></span>
+          </span>
+        </button>
+      </div>
+
+      <!-- 自訂 5 色色盤面板 -->
+      <div class="custom-theme-box" id="customThemeBox">
+        <div class="color-picker-grid">
+          <label class="color-picker-item" for="customBgPrimary">
+            <span>背景基底色</span>
+            <input type="color" id="customBgPrimary" value="#0f172a" />
+          </label>
+          <label class="color-picker-item" for="customBgSurface">
+            <span>卡片面板色</span>
+            <input type="color" id="customBgSurface" value="#1e293b" />
+          </label>
+          <label class="color-picker-item" for="customAccentColor">
+            <span>主強調／光暈色</span>
+            <input type="color" id="customAccentColor" value="#38bdf8" />
+          </label>
+          <label class="color-picker-item" for="customAccentSecondary">
+            <span>漸層輔助色</span>
+            <input type="color" id="customAccentSecondary" value="#7c3aed" />
+          </label>
+          <label class="color-picker-item" for="customTextPrimary">
+            <span>主要文字色</span>
+            <input type="color" id="customTextPrimary" value="#f8fafc" />
+          </label>
+        </div>
+        <button type="button" id="resetCustomThemeBtn" class="secondary-btn">↩️ 還原預設色</button>
+      </div>
+
+      <!-- 即時連動迷你預覽區（截圖 OCR 卡片 + 查找翻譯對話泡泡） -->
+      <div class="live-preview-box" id="themeLivePreview">
+        <div class="live-preview-title">👀 即時連動預覽：截圖外框光暈、OCR 辨識卡片與查找／翻譯面板</div>
+        <div class="live-preview-grid">
+          <div class="preview-card">
+            <div class="preview-card-label">✨ 截圖 OCR 辨識卡片</div>
+            <div class="preview-ocr-text">Smart Screen OCR 已擷取畫面文字，支援即時發音、複製與翻譯。</div>
+            <div class="preview-actions">
+              <span class="preview-btn-sec">📋 複製</span>
+              <span class="preview-btn-sec">🔊 發音</span>
+              <span class="preview-btn-pri">✨ 查詢 Gemini</span>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="preview-chat-header">✨ 查找／翻譯對話面板</div>
+            <span class="preview-chip">🌐 翻譯文字</span>
+            <div class="preview-bubble-user">請將這段文字翻譯為繁體中文</div>
+            <div class="preview-bubble-model">已為您自然流暢翻譯並整理核心重點。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 模型選擇（嚴格遵守強制模型清單） -->
+    <div class="field">
+      <label for="model">🤖 AI 模型選擇</label>
+      <select id="model">
+        <optgroup label="⭐ 預設模型（Gemini 2.5 免費模型）">
+          <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite（預設推薦：免費超輕量極速）</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash（免費模型）</option>
+        </optgroup>
+        <optgroup label="🚀 Gemini 4.0 系列">
+          <option value="gemini-4.0-hydrogen">gemini-4.0-hydrogen</option>
+          <option value="gemini-4.0-flash-lite">gemini-4.0-flash-lite</option>
+          <option value="gemini-4.0-flash">gemini-4.0-flash</option>
+        </optgroup>
+        <optgroup label="⚡ Gemini 3.x 系列（僅保留 Flash-Lite）">
+          <option value="gemini-3.8-flash-lite">gemini-3.8-flash-lite</option>
+        </optgroup>
+        <optgroup label="🌐 OpenAI 免費 / 輕量模型系列">
+          <option value="gpt-4o-mini">gpt-4o-mini</option>
+          <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+        </optgroup>
+        <optgroup label="✏️ 自訂模型">
+          <option value="__custom__">✏️ 手動輸入自訂模型 ID (Custom Model ID)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <!-- 自訂模型 ID 與 API 類型設定區塊 -->
+    <div class="custom-box" id="customModelBox">
+      <div class="grid-2">
+        <div>
+          <label for="customModelId">✏️ 手動輸入自訂模型 ID</label>
+          <input
+            type="text"
+            id="customModelId"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="例如：gemini-2.5-pro 或 gpt-4.1-mini"
+          />
+        </div>
+        <div>
+          <label for="customProvider">API 類型</label>
+          <select id="customProvider">
+            <option value="auto">自動判斷（依模型名稱）</option>
+            <option value="gemini">Google Gemini API</option>
+            <option value="openai">OpenAI / 相容 API</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <hr class="section-divider" />
+
+    <!-- Google Gemini API Key -->
+    <div class="field">
+      <label for="apiKey">🔑 Google Gemini API Key</label>
+      <input
+        type="text"
+        id="apiKey"
+        class="masked-input"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="貼上 AIzaSy... 開頭的 Gemini API Key"
+      />
+      <div class="hint">
+        還沒有金鑰？可至 <a href="#" id="aiStudioLink">Google AI Studio ↗</a> 免費建立 API Key（金鑰僅儲存於本機）。
+      </div>
+    </div>
+
+    <!-- OpenAI API Key -->
+    <div class="field">
+      <label for="openaiApiKey">🌐 OpenAI API Key（選用，使用 OpenAI 模型時必填）</label>
+      <input
+        type="text"
+        id="openaiApiKey"
+        class="masked-input"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="貼上 sk-... 開頭的 OpenAI API Key"
+      />
+    </div>
+
+    <!-- OpenAI Base URL -->
+    <div class="field">
+      <label for="openaiBaseUrl">🔗 OpenAI 自訂 Base URL（選用，預設 https://api.openai.com/v1）</label>
+      <input
+        type="text"
+        id="openaiBaseUrl"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="https://api.openai.com/v1"
+      />
+    </div>
+
+    <hr class="section-divider" />
+
+    <!-- 高品質自然語音發音引擎與語速設定 -->
+    <div class="field">
+      <label for="ttsEngineSelect">🔊 語音發音引擎（支援 Edge 自然神經語音 / Google Gemini 官方語音 / 地端語音）</label>
+      <div class="voice-controls-row">
+        <select id="ttsEngineSelect">
+          <option value="edge-neural" selected>🌟 Edge 自然神經語音（推薦・與 Edge 大聲朗讀同款・免費免金鑰）</option>
+          <option value="google-gemini">✨ Google Gemini 自然語音（官方高擬真・需設定 Gemini API Key）</option>
+          <option value="system-local">🖥️ 系統地端語音（優先 Google 地端・離線可用）</option>
+        </select>
+        <button type="button" id="testVoiceBtn" class="secondary-btn">🔊 試聽目前語音</button>
+      </div>
+
+      <!-- Edge 自然神經語音声線選擇 -->
+      <div class="voice-sub-box" id="edgeVoiceConfigBox">
+        <div class="grid-2">
+          <div>
+            <label for="edgeVoiceZhTwSelect">🇹🇼 台灣中文聲線</label>
+            <select id="edgeVoiceZhTwSelect">
+              <option value="zh-TW-HsiaoChenNeural" selected>台灣女聲・曉臻 (HsiaoChenNeural)</option>
+              <option value="zh-TW-YunJheNeural">台灣男聲・雲哲 (YunJheNeural)</option>
+              <option value="zh-TW-HsiaoYuNeural">台灣女聲・曉雨 (HsiaoYuNeural)</option>
+            </select>
+          </div>
+          <div>
+            <label for="edgeVoiceEnUsSelect">🇺🇸 英文聲線</label>
+            <select id="edgeVoiceEnUsSelect">
+              <option value="en-US-JennyNeural" selected>Jenny（自然女聲・推薦）</option>
+              <option value="en-US-GuyNeural">Guy（自然男聲）</option>
+              <option value="en-US-AriaNeural">Aria（清新女聲）</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint">
+          日文、韓文、英式英文、西/法/德文將自動配對對應母語神經聲線；若處於離線狀態會自動平滑備援至系統地端語音。
+        </div>
+      </div>
+
+      <!-- Google Gemini 官方自然語音声線選擇 -->
+      <div class="voice-sub-box" id="geminiVoiceConfigBox" style="display: none;">
+        <label for="geminiTtsVoiceSelect">✨ Gemini 官方高擬真聲線（需於上方填入 Google Gemini API Key）</label>
+        <select id="geminiTtsVoiceSelect">
+          <option value="Kore" selected>Kore（沉穩清晰・推薦）</option>
+          <option value="Aoede">Aoede（溫潤自然）</option>
+          <option value="Puck">Puck（輕快活潑）</option>
+          <option value="Charon">Charon（低沉磁性）</option>
+          <option value="Fenrir">Fenrir（厚實穩重）</option>
+          <option value="Leda">Leda（柔和親切）</option>
+        </select>
+      </div>
+
+      <!-- 系統地端語音選擇（保留 Google 地端優先排序） -->
+      <div class="voice-sub-box" id="systemVoiceConfigBox" style="display: none;">
+        <label for="preferredVoiceSelect">🖥️ 系統內建地端語音（優先排序 Google 地端語音）</label>
+        <select id="preferredVoiceSelect">
+          <option value="">⭐ 自動選擇最佳 Google 地端語音（依辨識文字語系）</option>
+        </select>
+      </div>
+
+      <div class="rate-slider-row">
+        <span style="font-size: 13px; color: var(--text-secondary); white-space: nowrap;">語速調整：</span>
+        <input type="range" id="speechRateRange" min="0.7" max="1.5" step="0.1" value="1.0" />
+        <span class="rate-value-badge" id="speechRateValue">1.0x</span>
+      </div>
+      <div class="hint" id="voiceEngineHint">
+        預設採用 <code>Edge 自然神經語音</code>（免金鑰），發音自然如真人朗讀；離線時將自動切換系統內建 <code>Google 地端語音</code>。
+      </div>
+    </div>
+
+    <!-- 儲存設定列 -->
+    <div class="btn-row">
+      <button type="button" id="saveBtn" class="primary-btn">💾 儲存設定</button>
+      <span class="status" id="statusMsg"></span>
+    </div>
+
+    <!-- 桌面版使用指南 -->
+    <div class="guide-box">
+      <h3>🚀 桌面版使用方式</h3>
+      1. <strong>全域一鍵截圖</strong>：在任何應用程式或瀏覽器畫面中，按下您的<strong>全域快速鍵</strong>（預設 <code>Alt+Shift+S</code>），或點擊桌面系統匣／頂部選單列圖示即可凍結滑鼠所在螢幕。<br />
+      2. <strong>框選區域辨識</strong>：在凍結畫面上按住滑鼠左鍵<strong>拖曳框選</strong>目標區域，放開滑鼠即刻由 AI 辨識文字。<br />
+      3. <strong>自然語音朗讀與連動配色</strong>：支援 <code>Edge 自然神經語音</code>、<code>Google Gemini 語音</code> 與 <code>系統地端語音</code>；切換上方主題配色時，設定頁、截圖光暈、辨識卡片與查找翻譯面板皆會同步變色。<br />
+      4. <strong>關閉截圖</strong>：點擊畫面右上角 <code>✕</code> 圖示，或按下鍵盤 <code>Esc</code> 鍵即可立即返回桌面。
+    </div>
+  </div>
+
+  <!-- 先載入全域配色共用模組，再啟動設定視窗腳本 -->
+  <script src="themeHelper.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

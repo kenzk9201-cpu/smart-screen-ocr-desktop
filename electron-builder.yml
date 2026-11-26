@@ -80,6 +80,8 @@ mac:
         - arm64
         - x64
 
-# macOS DMG 磁碟映像檔標題設定
+# macOS DMG 磁碟映像檔設定（採用 APFS 並停用 DMG 簽章，避免 macOS 15 Sequoia 上舊式 HFS+ hdiutil 掛載衝突或資源忙碌失敗）
 dmg:
   title: "${productName} ${version}"
+  filesystem: APFS
+  sign: false

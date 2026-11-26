@@ -1,0 +1,12 @@
+# ==============================================================================
+# Smart Screen OCR 桌面版 - Git 換行符號規範 (.gitattributes)
+# 確保跨平台（Windows / macOS / GitHub Actions）檢出腳本與設定檔時維持正確換行符號，
+# 避免 Windows CI 預設 autocrlf 將 .sh / .command 轉為 CRLF 導致測試或執行失敗
+# ==============================================================================
+
+* text=auto
+*.sh text eol=lf
+*.command text eol=lf
+*.bat text eol=crlf
+*.yml text eol=lf
+*.json text eol=lf

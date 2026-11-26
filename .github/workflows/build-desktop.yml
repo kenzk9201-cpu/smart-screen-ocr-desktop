@@ -53,12 +53,20 @@ jobs:
       - name: 執行自動化測試
         run: npm test
 
-      # 步驟 5：使用 electron-builder 打包 Windows 安裝檔與可攜版
+      # 步驟 5：使用 electron-builder 打包 Windows 安裝檔與可攜版（加上 --publish never 與失敗診斷輸出）
       - name: 打包 Windows 安裝檔 (.exe)
+        shell: bash
         env:
           # 無簽章憑證時關閉自動探索，確保未簽章建置穩定完成
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run build:win
+        run: |
+          set -o pipefail
+          if ! npx electron-builder --win --publish never --config electron-builder.yml 2>&1 | tee win-build.log; then
+            echo "::error::$(tail -n 15 win-build.log | tr '\n' ' ')"
+            rm -f win-build.log
+            exit 1
+          fi
+          rm -f win-build.log
 
       # 步驟 6：上傳 Windows 建置成品至 GitHub Actions Artifacts
       - name: 上傳 Windows 打包成品
@@ -121,20 +129,61 @@ jobs:
           path: dist/Smart-Screen-OCR-macOS-*-Portable.zip
           if-no-files-found: error
 
-      # 步驟 7：打包 macOS arm64 與 x64 的標準安裝檔 (.dmg / .zip)，若遇 Spotlight 暫時鎖定 hdiutil 則自動等待 5 秒重試一次
+      # 步驟 7：打包 macOS arm64 與 x64 的標準 .zip 與無掛載原生 .dmg（免疫 macOS 15 Spotlight hdiutil detach 鎖定）
       - name: 打包 macOS 標準安裝檔 (.dmg / .zip)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          DEBUG: "electron-builder:dmg"
         run: |
-          set -o pipefail
-          if ! npm run build:mac 2>&1 | tee /tmp/mac-build.log; then
-            echo "[重試] 偵測到 macOS hdiutil 資源暫時忙碌，等待 5 秒後重試打包..."
-            sleep 5
-            if ! npm run build:mac 2>&1 | tee -a /tmp/mac-build.log; then
-              echo "::error::$(tail -n 12 /tmp/mac-build.log | tr '\n' ' ')"
-              exit 1
+          set +e
+          (
+            set -euo pipefail
+            app_ver="$(node -p "require('./package.json').version")"
+
+            # 1. 使用 electron-builder 產出 arm64 與 x64 的標準 .zip（同步輸出 .app 目錄）
+            npx electron-builder --mac zip --arm64 --x64 --publish never --config electron-builder.yml
+
+            # 2. 使用 macOS 原生 hdiutil create 直接由資料夾建立壓縮 DMG（不掛載 /Volumes，徹底避免 Spotlight 資源忙碌）
+            create_dmg() {
+              local arch="$1"
+              local app_src="$2"
+              local stage_dir="dist/.dmg-stage-${arch}"
+              local dmg_out="dist/Smart Screen OCR-${app_ver}-${arch}.dmg"
+
+              if [[ ! -d "$app_src" ]]; then
+                echo "[錯誤] 找不到 ${arch} 應用程式套件：${app_src}"
+                return 1
+              fi
+
+              rm -rf "$stage_dir" "$dmg_out"
+              mkdir -p "$stage_dir"
+              ditto "$app_src" "$stage_dir/Smart Screen OCR.app"
+              ln -s /Applications "$stage_dir/Applications"
+
+              hdiutil create \
+                -volname "Smart Screen OCR ${app_ver}" \
+                -srcfolder "$stage_dir" \
+                -ov \
+                -format UDZO \
+                "$dmg_out"
+
+              rm -rf "$stage_dir"
+              echo "[成功] 已產出免掛載 DMG：${dmg_out}"
+            }
+
+            create_dmg "arm64" "dist/mac-arm64/Smart Screen OCR.app"
+            if [[ -d "dist/mac-x64/Smart Screen OCR.app" ]]; then
+              create_dmg "x64" "dist/mac-x64/Smart Screen OCR.app"
+            else
+              create_dmg "x64" "dist/mac/Smart Screen OCR.app"
             fi
+
+            ls -lh dist/*.dmg dist/*.zip
+          ) 2>&1 | tee /tmp/mac-build.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [[ "$rc" -ne 0 ]]; then
+            echo "::error::$(tail -n 15 /tmp/mac-build.log | tr '\n' ' ')"
+            exit "$rc"
           fi
 
       # 步驟 8：上傳 macOS 標準安裝檔成品至 GitHub Actions Artifacts
